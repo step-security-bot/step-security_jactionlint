@@ -155,7 +155,7 @@ if ! status="$(curl -fL -o "$archive" -w '%{http_code}' "${url}")"; then
 fi
 
 if [[ "$os" == "windows" ]]; then
-    unzip "$archive" "${name}.exe" -d "$target_dir"
+    unzip -o "$archive" "${name}.exe" -d "$target_dir"
     exe="$target_dir/${name}.exe"
 else
     tar xvzf "$archive" -C "$target_dir" "$name"
@@ -166,12 +166,6 @@ echo "Downloaded and unarchived executable: ${exe}"
 
 echo "Done: $("${exe}" --version)"
 
-if [ -n "$GITHUB_ACTION" ]; then
-    # On GitHub Actions, set executable path to output
-    if [ -n "${GITHUB_OUTPUT}" ]; then
-        echo "executable=${exe}" >> "$GITHUB_OUTPUT"
-    else
-        # GitHub Enterprise instance may not introduce the new set-output command yet (see #240)
-        echo "::set-output name=executable::${exe}"
-    fi
+if [ -n "$GITHUB_ACTION" ] && [ -n "${GITHUB_OUTPUT}" ]; then
+    echo "executable=${exe}" >> "$GITHUB_OUTPUT"
 fi
