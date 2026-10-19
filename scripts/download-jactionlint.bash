@@ -154,6 +154,37 @@ if ! status="$(curl -fL -o "$archive" -w '%{http_code}' "${url}")"; then
     exit 1
 fi
 
+checksum_file="${tempdir}/${name}_${version}_checksums.txt"
+checksum_url="https://github.com/${repo}/releases/download/v${version}/${name}_${version}_checksums.txt"
+echo "Verifying checksum from ${checksum_url}"
+if ! checksum_http="$(curl -fsSL -o "$checksum_file" -w '%{http_code}' "${checksum_url}")"; then
+    echo "Checksums file not available for v${version} (HTTP ${checksum_http:-network error}), skipping verification"
+else
+    expected="$(awk -v f="${file}" '$2 == f {print $1}' "$checksum_file")"
+    if [ -z "$expected" ]; then
+        echo "No checksum entry for ${file} in checksums file, skipping verification"
+    else
+        if command -v sha256sum >/dev/null 2>&1; then
+            actual="$(sha256sum "$archive" | awk '{print $1}')"
+        elif command -v shasum >/dev/null 2>&1; then
+            actual="$(shasum -a 256 "$archive" | awk '{print $1}')"
+        else
+            echo "No SHA-256 tool available, skipping checksum verification"
+            actual=""
+        fi
+        if [ -n "$actual" ]; then
+            if [ "$actual" = "$expected" ]; then
+                echo "Checksum verified: ${actual}"
+            else
+                echo "Checksum verification failed for ${file}" >&2
+                echo "  expected: ${expected}" >&2
+                echo "  actual:   ${actual}" >&2
+                exit 1
+            fi
+        fi
+    fi
+fi
+
 if [[ "$os" == "windows" ]]; then
     unzip -o "$archive" "${name}.exe" -d "$target_dir"
     exe="$target_dir/${name}.exe"
