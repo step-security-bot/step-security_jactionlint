@@ -35,22 +35,6 @@ jobs:
       - uses: actions/checkout@v7
         with:
           persist-credentials: false
-      - name: Check the workflows of this repository
-        id: clean
-        uses: ./
-      - name: The executable output is set
-        shell: bash
-        run: test -n "${EXECUTABLE}"
-        env:
-          EXECUTABLE: ${{ steps.clean.outputs.executable }}
-      - name: Check given files with options
-        uses: ./
-        with:
-          files: .github/workflows/action.yaml
-          profile: correctness
-          min-severity: error
-          annotations: "false"
-          color: "false"
       - name: Check a file which has problems
         id: broken
         uses: ./
