@@ -1,0 +1,34 @@
+name: Download script
+on:
+  push:
+    branches: [main]
+    paths:
+      - scripts/download-jactionlint.bash
+      - scripts/test-download-jactionlint.bash
+  pull_request:
+    paths:
+      - scripts/download-jactionlint.bash
+      - scripts/test-download-jactionlint.bash
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  download:
+    name: Test download script
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - run: ./scripts/test-download-jactionlint.bash
+        shell: bash

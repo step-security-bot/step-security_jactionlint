@@ -1,0 +1,62 @@
+name: Action
+on:
+  push:
+    branches: [main]
+    paths:
+      - action.yml
+      - scripts/action.bash
+      - scripts/download-jactionlint.bash
+      - .github/workflows/action.yaml
+  pull_request:
+    paths:
+      - action.yml
+      - scripts/action.bash
+      - scripts/download-jactionlint.bash
+      - .github/workflows/action.yaml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  action:
+    name: Test the action
+    strategy:
+      fail-fast: false
+      matrix:
+        os: ${{ github.actor == 'dependabot[bot]' && fromJSON('["ubuntu-latest"]') || fromJSON('["ubuntu-latest","macos-latest","windows-latest"]') }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Check a file which has problems
+        id: broken
+        uses: ./
+        with:
+          files: testdata/err/assign_expression.yaml
+          annotations: "false"
+        continue-on-error: true
+      - name: The problems fail the step
+        shell: bash
+        run: test "${OUTCOME}" = failure
+        env:
+          OUTCOME: ${{ steps.broken.outcome }}
+      - name: Write SARIF for a file which has problems
+        id: sarif
+        uses: ./
+        with:
+          files: testdata/err/assign_expression.yaml
+          advanced-security: "true"
+        # Nothing to upload to from a fork, and the permission is not granted here anyway
+        continue-on-error: true
+      - name: The SARIF file has the findings
+        shell: bash
+        run: grep -q '"ruleId"' "${SARIF}"
+        env:
+          SARIF: ${{ steps.sarif.outputs.sarif-file }}
